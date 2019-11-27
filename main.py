@@ -4,20 +4,49 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-DISP = False
+DISP = True
 
 def rgb2gray(rgb):
     return np.dot(rgb[...,:3], [0.299, 0.587, 0.144])
 
-def dot(img, style='voronoi', num_dots=10000):
-    dots = np.zeros((num_dots, 2))
-
+def dot(img, style='voronoi', num_dots=100000):
     # do all the halftoning
-    def grid(img):
-        pass
+    def grid(img, compensate=False):
+        def compute_mean_per_cell(img, cells_per_axis):
+            n = np.zeros((cells_per_axis, cells_per_axis))
 
-    def contrast_grid(img):
-        pass
+            x_scale = int(img.shape[0] / cells_per_axis)
+            y_scale = int(img.shape[1] / cells_per_axis)
+            for i in range(n.shape[0]):
+                for j in range(n.shape[1]):
+                    n[i, j] = np.mean(img[i*x_scale:(i+1)*x_scale, j*y_scale:(j+1)*y_scale])
+
+            return n, (x_scale, y_scale)
+
+        def distribute_dots(mu, cell_size, dots_per_cell):
+            dots = []
+            for i in range(mu.shape[0]):
+                for j in range(mu.shape[1]):
+                    g = gamma - int((gamma + 1)*mu[i,j])
+                    if compensate:
+                        g = int(1./3*g**2)
+
+                    r = np.random.rand(g, 2)
+                    r[:, 0] = r[:, 0] * cell_size[0] + i*cell_size[0]
+                    r[:, 1] = r[:, 1] * cell_size[1] + j*cell_size[1]
+
+                    dots.append(r)
+
+            return np.vstack(dots)
+
+        num_cells_per_axis = 40
+        discretized, s = compute_mean_per_cell(img, num_cells_per_axis)
+
+        gamma = int(num_dots / num_cells_per_axis**2)
+        gamma = 20
+        dots = distribute_dots(discretized, s, gamma)
+        
+        return dots
 
     def weighted_voronoi_stippling(img):
         pass
@@ -30,7 +59,7 @@ def dot(img, style='voronoi', num_dots=10000):
     elif style == 'grid':
         return grid(img)
     elif style == 'cgrid':
-        return contrast_grid(img)
+        return grid(img, compensate=True)
     elif style == 'dithering':
         return ordered_dithering(img)
 
@@ -60,7 +89,7 @@ def show_dots(dot_coords, ax=None):
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
 
-    ax.scatter(dot_coords.T)
+    ax.scatter(*dot_coords.T, s=0.1)
 
 def load_img(filename):
     img = mpimg.imread(filename)
@@ -82,9 +111,11 @@ def main():
     filename = args.filename
 
     rgb_img = load_img(filename)
+    if np.max(rgb_img) > 1:
+        rgb_img = rgb_img / 255
     grey_img = rgb2gray(rgb_img)
 
-    dots = dot(grey_img)
+    dots = dot(grey_img, style='cgrid')
     line = tsp(dots)
 
     if DISP:
@@ -99,10 +130,11 @@ def main():
         fig = plt.figure("Art")
 
         ax = fig.add_subplot(1,2,1)
+        ax.set_aspect('equal')
         show_dots(dots, ax)
 
-        ax = fig.add_subplot(1,2,2)
-        show_tsp(line)
+        #ax = fig.add_subplot(1,2,2)
+        #show_tsp(line)
         
         plt.show()
 
