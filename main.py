@@ -145,7 +145,7 @@ def main():
     dots_cg = dot(grey_img, style='cgrid')
     dots_dither = dot(grey_img, style='dithering')
 
-    line = tsp.tsp(dots_cg)
+    line = tsp.tsp(dots_cg, style='sa')
 
     if DISP:
         fig = plt.figure("Input")
