@@ -47,7 +47,10 @@ def simulated_annealing(dots):
     # generate random ordering
     path = dots.tolist()
     random.shuffle(path)
-    
+
+    best_yet = path
+    best_cost_yet = None
+
     T = 1000
     alpha = 0.2
     while True:
@@ -77,11 +80,15 @@ def simulated_annealing(dots):
                 if np.exp(-diff/T) > np.random.rand():
                     path = path_cp
 
+            if best_cost_yet is None or nc < best_cost_yet:
+                best_cost_yet = nc
+                best_yet = path
+
         T = T * (1 - alpha)
         if T <= 2.5:
             break
 
-    return np.vstack(path)
+    return np.vstack(best_yet)
 
 
 def tsp(dots, style='nn'):
