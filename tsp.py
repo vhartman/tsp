@@ -90,7 +90,6 @@ def simulated_annealing(dots):
 
     return np.vstack(best_yet)
 
-
 def tsp(dots, style='nn'):
     # https://developers.google.com/optimization/routing/tsp
     # mlrose
