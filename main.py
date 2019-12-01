@@ -5,13 +5,11 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from matplotlib.collections import LineCollection
 
+import util
 import tsp
 import stippling
 
 DISP = True
-
-def rgb2gray(rgb):
-    return np.dot(rgb[...,:3], [0.299, 0.587, 0.144])
 
 def postprocess(dots, img, style='', ax=None):
     if ax is None:
@@ -36,20 +34,6 @@ def postprocess(dots, img, style='', ax=None):
     if style == 'smooth':
         pass
 
-def show_dots(dot_coords, ax=None):
-    if ax is None:
-        fig = plt.figure()
-        ax = fig.add_subplot(1,1,1)
-
-    x = dot_coords[:, 1]
-    y = dot_coords[:, 0]
-    ax.scatter(x, -y, s=0.1)
-
-def load_img(filename):
-    img = mpimg.imread(filename)
-
-    return img
-
 def handle_args():
     parser = argparse.ArgumentParser(
         description='Transforms a given image into a traveling salesman halftone version of it.')
@@ -64,10 +48,10 @@ def main():
     args = handle_args()
     filename = args.filename
 
-    rgb_img = load_img(filename)
+    rgb_img = util.load_img(filename)
     if np.max(rgb_img) > 1:
         rgb_img = rgb_img / 255
-    grey_img = rgb2gray(rgb_img)
+    grey_img = util.rgb2gray(rgb_img)
 
     dots_g = stippling.dot(grey_img, style='grid')
     dots_cg = stippling.dot(grey_img, style='cgrid')
@@ -88,15 +72,15 @@ def main():
 
         ax = fig.add_subplot(1,3,1)
         ax.set_aspect('equal')
-        show_dots(dots_g, ax)
+        stippling.show_dots(dots_g, ax)
 
         ax = fig.add_subplot(1,3,2)
         ax.set_aspect('equal')
-        show_dots(dots_cg, ax)
+        stippling.show_dots(dots_cg, ax)
         
         ax = fig.add_subplot(1,3,3)
         ax.set_aspect('equal')
-        show_dots(dots_dither, ax)
+        stippling.show_dots(dots_dither, ax)
 
         fig = plt.figure("TSP")
         ax = fig.add_subplot(1,1,1)
