@@ -40,10 +40,32 @@ def grid(img, compensate=False, num_dots=20000):
     
     return dots
 
-def weighted_voronoi_stippling(img):
-    pass
+def weighted_voronoi_stippling(img, num_dots):
+    def weighted_centroid(vertices, density):
+        # raserize polygon -> get list of positions that are in the polygon
+        # find weighted average (weighted by the grey level)
+        pass
 
-def dithering(img):
+    max_iter = 100
+    centroids = np.random.rand(num_dots, 2)
+    for i in max_iter:
+        # get voronoi cells
+        new_cetroids = []
+        vor = scipy.spatial.Voronoi(centroids)
+
+        # get the vertices
+        for region in vor.regions:
+            vertices = vor.vertices[region + [region[0]], :]
+            
+            centroid = weighted_centroid(vertices, density)
+            new_centroids.append(centroid)
+        
+        centroids = new_centroids
+
+    dots = np.vstack(centroids)
+    return dots
+
+def dithering(img, style=None):
     d = copy.deepcopy(img)
     dots = []
 
@@ -64,25 +86,67 @@ def dithering(img):
             if x < img.shape[1] - 1 and y < img.shape[0] - 1:
                 d[y + 1, x + 1] = d[y + 1, x + 1] + quant_error * 1 / 16
 
-    for i in range(2, img.shape[0]-2, 4):
-        for j in range(2, img.shape[1]-2, 4):
-            m = np.mean(d[i-2:i+2, j-2:j+2])
+    gs = 2
+    for i in range(gs, img.shape[0]-gs, gs*2):
+        for j in range(gs, img.shape[1]-gs, gs*2):
+            if style is None:
+                m = np.mean(d[i-gs:i+gs, j-gs:j+gs])
+                if m < 0.5:
+                    dots.append([i, j])
+            elif style == 'rand':
+                s = (gs*2)**2 - np.sum(d[i-gs:i+gs, j-gs:j+gs])
+                s = s**1.5 / 10
 
-            if m < 0.5:
-                dots.append([i, j])
+                r = np.random.rand(int(s), 2)
+                r[:, 0] = r[:, 0] * gs*2 + i
+                r[:, 1] = r[:, 1] * gs*2 + j
+
+                dots.append(r)
+
+            elif style == 'ordered':
+                g = (gs*2)**2 - np.sum(d[i-gs:i+gs, j-gs:j+gs])
+                r = []
+                if g == 16:
+                    for k in range(gs*2):
+                        for l in range(gs*2):
+                            r.append([i, j])
+                elif g >= 10:
+                    for k in range(gs*2):
+                        for l in range(gs*2):
+                            if (k + l) % 2 == 0:
+                                r.append([i, j])
+                elif g >= 3:
+                    r.append([0, 0])
+                    r.append([2, 0])
+                    r.append([0, 2])
+                    r.append([2, 2])
+                elif g > 1:
+                    r.append([0, 0])
+                    r.append([2, 2])
+                elif g == 1:
+                    r.append([0, 0])
+                    r.append([2, 2])
+
+                if len(r) > 0:
+                    r = np.vstack(r)
+                    dots.append(r)
 
     return np.vstack(dots)
 
 def dot(img, style='voronoi', num_dots=20000):
     # do all the halftoning
     if style == 'voronoi':
-        return weighted_voronoi_stippling(img)
+        return weighted_voronoi_stippling(img, num_dots)
     elif style == 'grid':
         return grid(img, compensate=False, num_dots=num_dots)
     elif style == 'cgrid':
         return grid(img, compensate=True, num_dots=num_dots)
     elif style == 'dithering':
         return dithering(img)
+    elif style == 'odithering':
+        return dithering(img, style='ordered')
+    elif style == 'rdithering':
+        return dithering(img, style='rand')
 
 def show_dots(dot_coords, ax=None):
     if ax is None:
@@ -94,8 +158,8 @@ def show_dots(dot_coords, ax=None):
     ax.scatter(x, -y, s=0.1)
 
 def main():
-    #filename = './img/lenna.png'
-    filename = './img/david.jpg'
+    filename = './img/lenna.png'
+    #filename = './img/david.jpg'
 
     rgb_img = util.load_img(filename)
     #rgb_img[:, :] = 0.5
@@ -107,28 +171,38 @@ def main():
     dots_g = dot(grey_img, style='grid')
     dots_cg = dot(grey_img, style='cgrid')
     dots_dither = dot(grey_img, style='dithering')
+    dots_odither = dot(grey_img, style='odithering')
+    dots_rdither = dot(grey_img, style='rdithering')
 
-    fig = plt.figure("Input")
+    #fig = plt.figure("Input")
 
-    ax = fig.add_subplot(1,2,1)
-    ax.imshow(rgb_img)
+    #ax = fig.add_subplot(1,2,1)
+    #ax.imshow(rgb_img)
 
-    ax = fig.add_subplot(1,2,2)
-    ax.imshow(grey_img, cmap='Greys_r')
+    #ax = fig.add_subplot(1,2,2)
+    #ax.imshow(grey_img, cmap='Greys_r')
 
     fig = plt.figure("Art")
 
-    ax = fig.add_subplot(1,3,1)
+    ax = fig.add_subplot(2,3,1)
     ax.set_aspect('equal')
     show_dots(dots_g, ax)
 
-    ax = fig.add_subplot(1,3,2)
+    ax = fig.add_subplot(2,3,2)
     ax.set_aspect('equal')
     show_dots(dots_cg, ax)
     
-    ax = fig.add_subplot(1,3,3)
+    ax = fig.add_subplot(2,3,3)
     ax.set_aspect('equal')
     show_dots(dots_dither, ax)
+
+    ax = fig.add_subplot(2,3,4)
+    ax.set_aspect('equal')
+    show_dots(dots_rdither, ax)
+
+    ax = fig.add_subplot(2,3,5)
+    ax.set_aspect('equal')
+    show_dots(dots_odither, ax)
 
     plt.show()
 
