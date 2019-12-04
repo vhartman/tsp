@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import copy
 
 import util 
+import voronoi
+import scipy.ndimage
+
 
 def grid(img, compensate=False, num_dots=20000):
     def compute_mean_per_cell(img, cells_per_axis):
@@ -41,28 +44,60 @@ def grid(img, compensate=False, num_dots=20000):
     return dots
 
 def weighted_voronoi_stippling(img, num_dots):
-    def weighted_centroid(vertices, density):
-        # raserize polygon -> get list of positions that are in the polygon
-        # find weighted average (weighted by the grey level)
-        pass
+    def normalize(D):
+        Vmin, Vmax = D.min(), D.max()
+        if Vmax - Vmin > 1e-5:
+            D = (D-Vmin)/(Vmax-Vmin)
+        else:
+            D = np.zeros_like(D)
+        return D
 
-    max_iter = 100
-    centroids = np.random.rand(num_dots, 2)
-    for i in max_iter:
+    max_iter = 10
+
+    density = 1 - img
+    zoom = (num_dots * 500) / (density.shape[0]*density.shape[1])
+    zoom = int(round(np.sqrt(zoom)))
+    density = scipy.ndimage.zoom(density, zoom, order=0)
+
+    density = np.minimum(density, 0.8)
+    density = density**2
+    density = normalize(density)
+    density = density.T
+    density_P = density.cumsum(axis=1)
+    density_Q = density_P.cumsum(axis=1)
+
+    def initialization(n, D):
+        """
+        Return n points distributed over [xmin, xmax] x [ymin, ymax]
+        according to (normalized) density distribution.
+        with xmin, xmax = 0, density.shape[1]
+             ymin, ymax = 0, density.shape[0]
+        The algorithm here is a simple rejection sampling.
+        """
+
+        samples = []
+        while len(samples) < n:
+            # X = np.random.randint(0, D.shape[1], 10*n)
+            # Y = np.random.randint(0, D.shape[0], 10*n)
+            X = np.random.uniform(0, D.shape[1], 10*n)
+            Y = np.random.uniform(0, D.shape[0], 10*n)
+            P = np.random.uniform(0, 1, 10*n)
+            index = 0
+            while index < len(X) and len(samples) < n:
+                x, y = X[index], Y[index]
+                x_, y_ = int(np.floor(x)), int(np.floor(y))
+                if P[index] < D[y_, x_]:
+                    samples.append([x, y])
+                index += 1
+        return np.array(samples)
+
+    centroids = initialization(num_dots, density)
+
+    for i in range(max_iter):
         # get voronoi cells
-        new_cetroids = []
-        vor = scipy.spatial.Voronoi(centroids)
+        _, centroids = voronoi.centroids(centroids, density, density_P, density_Q)
 
-        # get the vertices
-        for region in vor.regions:
-            vertices = vor.vertices[region + [region[0]], :]
-            
-            centroid = weighted_centroid(vertices, density)
-            new_centroids.append(centroid)
-        
-        centroids = new_centroids
-
-    dots = np.vstack(centroids)
+    dots = np.vstack(centroids) / zoom
     return dots
 
 def dithering(img, style=None):
@@ -168,6 +203,7 @@ def main():
         rgb_img = rgb_img / 255
     grey_img = util.rgb2gray(rgb_img)
 
+    dots_v = dot(grey_img, style='voronoi')
     dots_g = dot(grey_img, style='grid')
     dots_cg = dot(grey_img, style='cgrid')
     dots_dither = dot(grey_img, style='dithering')
@@ -203,6 +239,10 @@ def main():
     ax = fig.add_subplot(2,3,5)
     ax.set_aspect('equal')
     show_dots(dots_odither, ax)
+
+    ax = fig.add_subplot(2,3,6)
+    ax.set_aspect('equal')
+    show_dots(dots_v, ax)
 
     plt.show()
 

@@ -54,10 +54,11 @@ def main():
     grey_img = util.rgb2gray(rgb_img)
 
     dots_g = stippling.dot(grey_img, style='grid')
+    dots_v = stippling.dot(grey_img, style='voronoi', num_dots=10000)
     dots_cg = stippling.dot(grey_img, style='cgrid')
     dots_dither = stippling.dot(grey_img, style='dithering')
 
-    line = tsp.tsp(dots_cg, style='nn')
+    line = tsp.tsp(dots_v, style='nn')
 
     if DISP:
         fig = plt.figure("Input")
