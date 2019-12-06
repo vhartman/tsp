@@ -90,6 +90,61 @@ def simulated_annealing(dots):
 
     return np.vstack(best_yet)
 
+def nf(dots):
+    # nearest fragment search
+    return None
+
+# match twice and stitch
+def mts(dots):
+    # initial matching: minimum weight matching
+    # second matching: minimum weight matching with previous edges cost set to inf
+    # stitching
+    return None
+
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import minimum_spanning_tree
+from scipy.optimize import linear_sum_assignment
+
+def christofides(dots):
+    d = np.zeros((len(dots), len(dots)))
+    for i in range(len(dots)):
+        for j in range(i+1, len(dots)):
+            d[i, j] = np.linalg.norm(dots[i] - dots[j])
+
+    X = csr_matrix(d)
+    Tcsr = minimum_spanning_tree(X)
+
+    # get points with odd degree 
+    tcsr_arr = Tcsr.toarray()
+    O = np.argwhere((tcsr_arr > 0).sum(axis=1) % 2).flatten()
+
+    O_d = d[np.ix_(O, O)]
+    O_d += O_d.T
+    O_d += np.eye(len(O_d)) * 100000000
+
+    r, c = linear_sum_assignment(O_d)
+
+    # form eulerian circuit using the previous results using fleurys algorithm
+    # pick a random start in the graph
+    node = None
+    while True:
+        # check which child nodes are bridges
+        # pick one of the non-bridges
+        # move to next node
+        # remove edge that was just traversed
+        # add to path
+        break
+    
+    # skip repeated vertices
+    node = None
+    for i in range(num_nodes):
+        # pick one of the paths leading away from the node (non-traversed paths)
+        # if resulting node is visited, pick from outgoing edges and repeat
+        # mark as visited
+        # mark outgoing as traversed
+
+    return None
+
 def tsp(dots, style='nn'):
     # https://developers.google.com/optimization/routing/tsp
     # mlrose
@@ -98,6 +153,8 @@ def tsp(dots, style='nn'):
         return nn(dots)
     elif style == 'sa':
         return simulated_annealing(dots)
+    elif style == 'christofides':
+        return christofides(dots)
 
     return None
 
@@ -112,20 +169,27 @@ def show_tsp(dots, ax=None):
 if __name__ == "__main__":
     np.random.seed(10)
 
-    n = 100
+    n = 10
     pts = np.random.rand(n, 2) * 1000
 
-    ordered_pts_nn = tsp(pts, style='nn')
-    ordered_pts_sa = tsp(pts, style='sa')
+    #ordered_pts_nn = tsp(pts, style='nn')
+    #ordered_pts_sa = tsp(pts, style='sa')
+    ordered_pts_ch = tsp(pts, style='christofides')
+
+    exit()
 
     fig = plt.figure()
 
-    ax = fig.add_subplot(1,2,1)
+    ax = fig.add_subplot(2,2,1)
     ax.scatter(pts[:, 1], -pts[:, 0])
     show_tsp(ordered_pts_nn, ax)
 
-    ax = fig.add_subplot(1,2,2)
+    ax = fig.add_subplot(2,2,2)
     ax.scatter(pts[:, 1], -pts[:, 0])
     show_tsp(ordered_pts_sa, ax)
+
+    ax = fig.add_subplot(2,2,3)
+    ax.scatter(pts[:, 1], -pts[:, 0])
+    show_tsp(ordered_pts_ch, ax)
 
     plt.show()
