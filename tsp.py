@@ -105,6 +105,11 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.optimize import linear_sum_assignment
 
+class N:
+    def __init__(self, i):
+        self.links = []
+        self.ind = i
+
 def christofides(dots):
     d = np.zeros((len(dots), len(dots)))
     for i in range(len(dots)):
@@ -115,35 +120,156 @@ def christofides(dots):
     Tcsr = minimum_spanning_tree(X)
 
     # get points with odd degree 
+    np.set_printoptions(precision=1)
     tcsr_arr = Tcsr.toarray()
-    O = np.argwhere((tcsr_arr > 0).sum(axis=1) % 2).flatten()
+    O = np.argwhere((((tcsr_arr > 0) + (tcsr_arr.T > 0)).sum(axis=1)) % 2).flatten()
+
+    #f = plt.figure()
+    #ax = f.add_subplot(1, 2, 1)
+    G = []
+    for i in range(dots.shape[0]):
+        G.append(N(i))
+
+    for i in range(tcsr_arr.shape[0]):
+        for j in range(i+1, tcsr_arr.shape[0]):
+            if tcsr_arr[i, j] > 0:
+                G[i].links.append(j)
+                G[j].links.append(i)
+                #ax.plot([dots[i, 0], dots[j, 0]], [dots[i, 1], dots[j, 1]], c='black', alpha=0.5)
+
+    #ax.scatter(*dots.T)
 
     O_d = d[np.ix_(O, O)]
     O_d += O_d.T
-    O_d += np.eye(len(O_d)) * 100000000
+    O_d += np.eye(len(O_d)) * 100000000000
 
-    r, c = linear_sum_assignment(O_d)
+    p = []
+    matched = []
+    for a, i in enumerate(O):
+        m = 10000000000
+        ind = -1
+        if i in matched:
+            continue
+
+        for j in O[a+1:]:
+            if d[i, j] < m and j not in matched:
+                ind = j
+                m = d[i, j]
+
+        matched.append(ind)
+        p.append((i, ind))
+        
+    for i, j in p:
+        G[i].links.append(j)
+        G[j].links.append(i)
+    
+    #for i in G:
+    #    print(i.ind, len(i.links))
+    #print()
+
+    def dfs(graph, start):
+        op = [start]
+        visited = []
+
+        cnt = 0
+        while True:
+            current = op[0]
+            visited.append(current)
+            
+            for n in graph[current].links:
+                if n not in visited and n not in op:
+                    op.append(n)
+
+            del op[0]
+
+            cnt += 1
+            if len(op) == 0:
+                break
+
+        return cnt
 
     # form eulerian circuit using the previous results using fleurys algorithm
     # pick a random start in the graph
-    node = None
+    node = G[0]
+    path = [0]
     while True:
-        # check which child nodes are bridges
-        # pick one of the non-bridges
+        # select node
+        if len(node.links) == 1:
+            j = node.links[0]
+        else:
+            # check which child nodes are bridges
+            for i, l in enumerate(node.links):
+                #f = plt.figure()
+                #ax = f.add_subplot(1,2,1)
+                #for h in G:
+                #    for g in h.links:
+                #        ax.plot([dots[h.ind, 0], dots[g, 0]], [dots[h.ind, 1], dots[g, 1]], c='black', alpha=0.1)
+
+                cnt = dfs(G, node.ind)
+                
+                G[l].links.remove(node.ind)
+                G[node.ind].links.remove(l)
+
+                #ax = f.add_subplot(1,2,2)
+                #for h in G:
+                #    for g in h.links:
+                #        ax.plot([dots[h.ind, 0], dots[g, 0]], [dots[h.ind, 1], dots[g, 1]], c='black', alpha=0.1)
+                #ax.scatter(dots[node.ind, 0], dots[node.ind, 1])
+                #ax.scatter(dots[l, 0], dots[l, 1])
+                cnt_rm = dfs(G, node.ind)
+
+                G[l].links.append(node.ind)
+                G[node.ind].links.append(l)
+
+                #plt.show()
+
+                #print(node.ind)
+                #print(cnt)
+                #print(cnt_rm)
+                #print(l, node.links)
+                #print(l, G[l].links)
+                #print()
+                if cnt == cnt_rm:
+                    j = l
+                    break
+
+        path.append(j)
+
         # move to next node
         # remove edge that was just traversed
-        # add to path
-        break
-    
-    # skip repeated vertices
-    node = None
-    for i in range(num_nodes):
-        # pick one of the paths leading away from the node (non-traversed paths)
-        # if resulting node is visited, pick from outgoing edges and repeat
-        # mark as visited
-        # mark outgoing as traversed
 
-    return None
+        ind = node.ind
+        node.links.remove(j)
+        #print(node.ind)
+        #print(node.links)
+
+        node = G[j]
+        node.links.remove(ind)
+
+        #print(node.ind)
+        #print(node.links)
+        #print()
+
+        if len(node.links) == 0:
+            break
+    
+    #ax = f.add_subplot(1, 2, 2)
+    #for o in range(len(path)):
+    #    i = path[o-1]
+    #    j = path[o]
+    #    ax.plot([dots[i, 0], dots[j, 0]], [dots[i, 1], dots[j, 1]],c='black', alpha=0.5)
+
+    #plt.show()
+
+    # skip repeated vertices
+    visited = []
+    ordered_dots = []
+    for p in path:
+        if p not in visited:
+            visited.append(p)
+            ordered_dots.append(dots[p, :])
+
+    return np.vstack(ordered_dots)
 
 def tsp(dots, style='nn'):
     # https://developers.google.com/optimization/routing/tsp
@@ -169,15 +295,17 @@ def show_tsp(dots, ax=None):
 if __name__ == "__main__":
     np.random.seed(10)
 
-    n = 10
+    n = 1000
     pts = np.random.rand(n, 2) * 1000
 
-    #ordered_pts_nn = tsp(pts, style='nn')
+    print('nn')
+    ordered_pts_nn = tsp(pts, style='nn')
+    print('sa')
     #ordered_pts_sa = tsp(pts, style='sa')
+    print('chr')
     ordered_pts_ch = tsp(pts, style='christofides')
 
-    exit()
-
+    print('plotting')
     fig = plt.figure()
 
     ax = fig.add_subplot(2,2,1)
@@ -186,7 +314,7 @@ if __name__ == "__main__":
 
     ax = fig.add_subplot(2,2,2)
     ax.scatter(pts[:, 1], -pts[:, 0])
-    show_tsp(ordered_pts_sa, ax)
+    #show_tsp(ordered_pts_sa, ax)
 
     ax = fig.add_subplot(2,2,3)
     ax.scatter(pts[:, 1], -pts[:, 0])
