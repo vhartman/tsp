@@ -1,15 +1,28 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import minimum_spanning_tree
+from scipy.optimize import linear_sum_assignment
+
 import random
 
 import kdtree
 
-def nn(dots):
+def path_length(path):
+    c = 0
+    for i in range(len(path)):
+        c += np.linalg.norm(np.array(path[i-1]) - np.array(path[i]))
+
+    return c
+
+def nn(dots, start=0):
+    assert start < dots.shape[0]
+
     not_visited = dots.tolist()
 
-    current = not_visited[0]
-    del not_visited[0]
+    current = not_visited[start]
+    del not_visited[start]
 
     ordered_dots = [current]
     tree = kdtree.create(not_visited)
@@ -25,14 +38,23 @@ def nn(dots):
 
     return np.vstack(ordered_dots)
 
+def repeated_nn(dots, runs=None):
+    if runs is None:
+        runs = dots.shape[0]
+
+    best_cost = None
+    best_tour = None
+    for i in range(runs):
+        tour = nn(dots, i)
+        cost = path_length(tour)
+
+        if best_cost is None or cost < best_cost:
+            best_cost = cost
+            best_tour = tour
+
+    return best_tour
+
 def simulated_annealing(dots):
-    def path_length(path):
-        c = 0
-        for i in range(len(path)):
-            c += np.linalg.norm(np.array(path[i-1]) - np.array(path[i]))
-
-        return c
-
     def get_rand_ind(l):
         while True:
             ind = np.random.randint(0, l, 2)
@@ -100,10 +122,6 @@ def mts(dots):
     # second matching: minimum weight matching with previous edges cost set to inf
     # stitching
     return None
-
-from scipy.sparse import csr_matrix
-from scipy.sparse.csgraph import minimum_spanning_tree
-from scipy.optimize import linear_sum_assignment
 
 class N:
     def __init__(self, i):
@@ -277,6 +295,8 @@ def tsp(dots, style='nn'):
 
     if style == 'nn':
         return nn(dots)
+    elif style == 'rnn':
+        return repeated_nn(dots)
     elif style == 'sa':
         return simulated_annealing(dots)
     elif style == 'christofides':
@@ -295,13 +315,18 @@ def show_tsp(dots, ax=None):
 if __name__ == "__main__":
     np.random.seed(10)
 
-    n = 1000
+    n = 100
     pts = np.random.rand(n, 2) * 1000
 
     print('nn')
     ordered_pts_nn = tsp(pts, style='nn')
+    
+    print('rnn')
+    ordered_pts_rnn = tsp(pts, style='rnn')
+
     print('sa')
     #ordered_pts_sa = tsp(pts, style='sa')
+    
     print('chr')
     ordered_pts_ch = tsp(pts, style='christofides')
 
@@ -319,5 +344,9 @@ if __name__ == "__main__":
     ax = fig.add_subplot(2,2,3)
     ax.scatter(pts[:, 1], -pts[:, 0])
     show_tsp(ordered_pts_ch, ax)
+
+    ax = fig.add_subplot(2,2,4)
+    ax.scatter(pts[:, 1], -pts[:, 0])
+    show_tsp(ordered_pts_rnn, ax)
 
     plt.show()
