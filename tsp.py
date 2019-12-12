@@ -36,12 +36,19 @@ def nn(dots, start=0):
     return np.vstack(ordered_dots)
 
 def repeated_nn(dots, runs=None):
+    N = dots.shape[0]
+
     if runs is None:
-        runs = dots.shape[0]
+        runs = N
+
+    runs = min([runs, N])
+
+    start_pts = [i for i in range(N)]
+    start_pts = np.random.choice(start_pts, runs, replace=False)
 
     best_cost = None
     best_tour = None
-    for i in range(runs):
+    for i in start_pts:
         tour = nn(dots, i)
         cost = path_length(tour)
 
@@ -125,7 +132,7 @@ def tsp(dots, style='nn'):
     if style == 'nn':
         return nn(dots)
     elif style == 'rnn':
-        return repeated_nn(dots)
+        return repeated_nn(dots, 10)
     elif style == 'sa':
         return simulated_annealing(dots)
     elif style == 'christofides':
@@ -141,13 +148,24 @@ def show_tsp(dots, ax=None):
     dots = np.vstack([dots, dots[0, :]])
     ax.plot(dots[:, 1], -dots[:, 0], linewidth=1)
 
-def alter_tour(dots):
+def alter_tour(dots, max_len=None, max_starts=None):
     N = dots.shape[0]
+
+    if max_len is None:
+        max_len = N
+
+    starts = [i for i in range(N)]
+
+    if max_starts is not None:
+        if max_starts > N:
+            max_starts = N
+
+        starts = np.random.choice(starts, max_starts, replace=False)
 
     best_tour = dots.tolist()
     
-    for l in range(N):
-        for start in range(N):
+    for l in range(max_len):
+        for start in starts:
             i = start
             j = (start + l) % N
             # check if alteration of tour decreases the cost

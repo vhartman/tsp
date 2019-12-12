@@ -53,12 +53,15 @@ def main():
         rgb_img = rgb_img / 255
     grey_img = util.rgb2gray(rgb_img)
 
-    dots_g = stippling.dot(grey_img, style='grid')
-    dots_v = stippling.dot(grey_img, style='voronoi', num_dots=10000)
-    dots_cg = stippling.dot(grey_img, style='cgrid')
+    #dots_g = stippling.dot(grey_img, style='grid')
+    #dots_v = stippling.dot(grey_img, style='voronoi', num_dots=10000)
+    #dots_cg = stippling.dot(grey_img, style='cgrid')
     dots_dither = stippling.dot(grey_img, style='dithering')
 
-    line = tsp.tsp(dots_v, style='nn')
+    print('Starting TSP')
+    line = tsp.tsp(dots_dither, style='rnn')
+    print('Altering tour')
+    line = tsp.alter_tour(line, max_len=100)
 
     if DISP:
         fig = plt.figure("Input")
@@ -73,11 +76,11 @@ def main():
 
         ax = fig.add_subplot(1,3,1)
         ax.set_aspect('equal')
-        stippling.show_dots(dots_g, ax)
+        #stippling.show_dots(dots_g, ax)
 
         ax = fig.add_subplot(1,3,2)
         ax.set_aspect('equal')
-        stippling.show_dots(dots_cg, ax)
+        #stippling.show_dots(dots_cg, ax)
         
         ax = fig.add_subplot(1,3,3)
         ax.set_aspect('equal')
