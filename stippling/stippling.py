@@ -2,9 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
-import util 
-import voronoi
 import scipy.ndimage
+
+import stippling.util 
+import stippling.voronoi
 
 
 def grid(img, compensate=False, num_dots=20000):

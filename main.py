@@ -6,8 +6,8 @@ import matplotlib.image as mpimg
 from matplotlib.collections import LineCollection
 
 import util
-import tsp
-import stippling
+import tsp.tsp as tsp
+import stippling.stippling as stippling
 
 DISP = True
 

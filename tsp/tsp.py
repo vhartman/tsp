@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 
 import random
 
-import christofides
-import kdtree
+import tsp.christofides as christofides
+import tsp.kdtree as kdtree
 
 def path_length(path):
     c = 0
