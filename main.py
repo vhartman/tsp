@@ -59,9 +59,9 @@ def main():
     dots_dither = stippling.dot(grey_img, style='dithering')
 
     print('Starting TSP')
-    line = tsp.tsp(dots_dither, style='rnn')
+    line = tsp.optimize(dots_dither, method='rnn')
     print('Altering tour')
-    line = tsp.alter_tour(line, max_len=100)
+    line = tsp.improve(line, max_len=100)
 
     if DISP:
         fig = plt.figure("Input")
