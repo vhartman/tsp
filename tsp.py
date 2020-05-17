@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 import random
 
 import christofides
+import util
 import kdtree
+
+import argparse
 
 def path_length(path):
     c = 0
@@ -169,59 +172,59 @@ def alter_tour(dots, max_len=None, max_starts=None):
             i = start
             j = (start + l) % N
             # check if alteration of tour decreases the cost
-            current_cost = np.linalg.norm(np.array(best_tour[i-1]) - np.array(best_tour[i])) + np.linalg.norm(np.array(best_tour[j-1]) - np.array(best_tour[j]))
-            cost = np.linalg.norm(np.array(best_tour[i-1]) - np.array(best_tour[j-1])) + np.linalg.norm(np.array(best_tour[j]) - np.array(best_tour[i]))
+            current_cost = np.linalg.norm(np.array(best_tour[i-1]) - np.array(best_tour[i])) \
+                    + np.linalg.norm(np.array(best_tour[j-1]) - np.array(best_tour[j]))
+            cost = np.linalg.norm(np.array(best_tour[i-1]) - np.array(best_tour[j-1])) \
+                    + np.linalg.norm(np.array(best_tour[j]) - np.array(best_tour[i]))
 
             if cost < current_cost:
                 best_tour[i:j] = reversed(best_tour[i:j])
 
     return np.vstack(best_tour)
 
+def parse():
+    parser = argparse.ArgumentParser(description='Stippling')
+
+    parser.add_argument('--method', dest="method", default="all")
+    parser.add_argument('--num', dest="num_dots", default=100, type=int)
+   
+    args = parser.parse_args()
+    return args
+
 if __name__ == "__main__":
     np.random.seed(10)
+    args = parse()
 
-    n = 100
+    n = args.num_dots
     pts = np.random.rand(n, 2) * 1000
 
-    print('nn')
-    ordered_pts_nn = tsp(pts, style='nn')
-    ordered_pts_nn_altered = alter_tour(ordered_pts_nn)
-    ordered_pts_nn_altered_2 = alter_tour(ordered_pts_nn_altered)
-    
-    print('rnn')
-    ordered_pts_rnn = tsp(pts, style='rnn')
-    ordered_pts_rnn_altered = alter_tour(ordered_pts_rnn)
+    methods = args.method.split(',')
+    x = len(methods)
 
-    print('sa')
-    #ordered_pts_sa = tsp(pts, style='sa')
-    #ordered_pts_sa_altered = alter_tour(ordered_pts_sa)
-    
-    print('chr')
-    ordered_pts_ch = tsp(pts, style='christofides')
-    ordered_pts_ch_altered = alter_tour(ordered_pts_ch)
-
-    print('plotting')
     fig = plt.figure()
+    for i, method in enumerate(methods):
+        ordered_pts = tsp(pts, style=method)
+        ordered_pts_altered = alter_tour(ordered_pts)
+        ordered_pts_altered_2 = alter_tour(ordered_pts_altered)
 
-    ax = fig.add_subplot(2,2,1)
-    ax.scatter(pts[:, 1], -pts[:, 0])
-    show_tsp(ordered_pts_nn, ax)
-    show_tsp(ordered_pts_nn_altered, ax)
-    show_tsp(ordered_pts_nn_altered_2, ax)
+        print(method)
+        print('\t', path_length(ordered_pts))
+        print('\t', path_length(ordered_pts_altered))
+        print('\t', path_length(ordered_pts_altered_2))
 
-    ax = fig.add_subplot(2,2,2)
-    ax.scatter(pts[:, 1], -pts[:, 0])
-    #show_tsp(ordered_pts_sa, ax)
-    #show_tsp(ordered_pts_nn_altered, ax)
+        ax = fig.add_subplot(x, 3, i*3+1)
+        ax.scatter(pts[:, 1], -pts[:, 0])
+        ax.set_aspect('equal')
+        show_tsp(ordered_pts, ax)
 
-    ax = fig.add_subplot(2,2,3)
-    ax.scatter(pts[:, 1], -pts[:, 0])
-    show_tsp(ordered_pts_ch, ax)
-    show_tsp(ordered_pts_ch_altered, ax)
-
-    ax = fig.add_subplot(2,2,4)
-    ax.scatter(pts[:, 1], -pts[:, 0])
-    show_tsp(ordered_pts_rnn, ax)
-    show_tsp(ordered_pts_rnn_altered, ax)
-
+        ax = fig.add_subplot(x, 3, i*3+2)
+        ax.scatter(pts[:, 1], -pts[:, 0])
+        ax.set_aspect('equal')
+        show_tsp(ordered_pts_altered, ax)
+        
+        ax = fig.add_subplot(x, 3, i*3+3)
+        ax.scatter(pts[:, 1], -pts[:, 0])
+        ax.set_aspect('equal')
+        show_tsp(ordered_pts_altered_2, ax)
+    
     plt.show()

@@ -55,11 +55,18 @@ def main():
 
     #dots_g = stippling.dot(grey_img, style='grid')
     #dots_v = stippling.dot(grey_img, style='voronoi', num_dots=10000)
-    #dots_cg = stippling.dot(grey_img, style='cgrid')
-    dots_dither = stippling.dot(grey_img, style='dithering')
+    dots_cg = stippling.dot(grey_img, style='cgrid', num_dots=10000)
+    #dots_dither = stippling.dot(grey_img, style='dithering')
+
+    dots = dots_cg
+
+   # fig = plt.figure("Input")
+   # ax = fig.add_subplot(1,2,1)
+   # stippling.show_dots(dots_cg, ax)
+   # plt.show()
 
     print('Starting TSP')
-    line = tsp.tsp(dots_dither, style='rnn')
+    line = tsp.tsp(dots, style='rnn')
     print('Altering tour')
     line = tsp.alter_tour(line, max_len=100)
 
@@ -80,11 +87,11 @@ def main():
 
         ax = fig.add_subplot(1,3,2)
         ax.set_aspect('equal')
-        #stippling.show_dots(dots_cg, ax)
+        stippling.show_dots(dots_cg, ax)
         
         ax = fig.add_subplot(1,3,3)
         ax.set_aspect('equal')
-        stippling.show_dots(dots_dither, ax)
+        #stippling.show_dots(dots_dither, ax)
 
         fig = plt.figure("TSP")
         ax = fig.add_subplot(1,1,1)

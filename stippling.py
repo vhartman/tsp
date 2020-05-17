@@ -6,8 +6,9 @@ import util
 import voronoi
 import scipy.ndimage
 
+import argparse
 
-def grid(img, compensate=False, num_dots=20000):
+def grid(img, compensate=False, num_dots=20000, num_cells_per_axis=40):
     def compute_mean_per_cell(img, cells_per_axis):
         n = np.zeros((cells_per_axis, cells_per_axis))
 
@@ -27,6 +28,8 @@ def grid(img, compensate=False, num_dots=20000):
                 if compensate:
                     g = int(1./3*g**2)
 
+                g = np.max([0, g])
+
                 r = np.random.rand(g, 2)
                 r[:, 0] = r[:, 0] * cell_size[0] + i*cell_size[0]
                 r[:, 1] = r[:, 1] * cell_size[1] + j*cell_size[1]
@@ -35,11 +38,15 @@ def grid(img, compensate=False, num_dots=20000):
 
         return np.vstack(dots)
 
-    num_cells_per_axis = 40
     discretized, s = compute_mean_per_cell(img, num_cells_per_axis)
 
-    gamma = int(num_dots / num_cells_per_axis**2)
+    gamma = int(np.ceil(num_dots / num_cells_per_axis**2) * 1/np.mean(discretized))
     dots = distribute_dots(discretized, s, gamma)
+
+    # prune, so that we have the desired number of dots
+    if len(dots) > num_dots:
+        d = np.random.choice(np.arange(0, len(dots)), len(dots)-num_dots, replace=False)
+        dots = np.delete(dots, d, axis=0)
     
     return dots
 
@@ -101,26 +108,36 @@ def weighted_voronoi_stippling(img, num_dots):
     return dots
 
 def dithering(img, style=None):
-    d = copy.deepcopy(img)
+    def floyd_steinberg(img):
+        d = copy.deepcopy(img)
+
+        for y in range(img.shape[0]):
+            for x in range(img.shape[1]):
+                old = d[y,x]
+                new = min([max([0, round(old)]), 1])
+
+                d[y, x] = new
+
+                quant_error = old - new
+                if x < img.shape[1] - 1:
+                    d[y    , x + 1] = d[y    , x + 1] + quant_error * 7 / 16.
+                if x > 0 and y < img.shape[0] - 1:
+                    d[y + 1, x - 1] = d[y + 1, x - 1] + quant_error * 3 / 16.
+                if y < img.shape[0] - 1:
+                    d[y + 1, x    ] = d[y + 1, x    ] + quant_error * 5 / 16.
+                if x < img.shape[1] - 1 and y < img.shape[0] - 1:
+                    d[y + 1, x + 1] = d[y + 1, x + 1] + quant_error * 1 / 16.
+
+        return d
+
+    d = floyd_steinberg(img)
+
+    plt.imshow(img)
+    plt.figure()
+    plt.imshow(d)
+    plt.show()
+
     dots = []
-
-    for y in range(img.shape[0]):
-        for x in range(img.shape[1]):
-            old = d[y,x]
-            new = min([max([0, round(old)]), 1])
-
-            d[y, x] = new
-
-            quant_error = old - new
-            if x < img.shape[1] - 1:
-                d[y    , x + 1] = d[y    , x + 1] + quant_error * 7 / 16
-            if x > 0 and y < img.shape[0] - 1:
-                d[y + 1, x - 1] = d[y + 1, x - 1] + quant_error * 3 / 16
-            if y < img.shape[0] - 1:
-                d[y + 1, x    ] = d[y + 1, x    ] + quant_error * 5 / 16
-            if x < img.shape[1] - 1 and y < img.shape[0] - 1:
-                d[y + 1, x + 1] = d[y + 1, x + 1] + quant_error * 1 / 16
-
     gs = 2
     for i in range(gs, img.shape[0]-gs, gs*2):
         for j in range(gs, img.shape[1]-gs, gs*2):
@@ -168,7 +185,7 @@ def dithering(img, style=None):
 
     return np.vstack(dots)
 
-def dot(img, style='voronoi', num_dots=20000):
+def stipple(img, style='voronoi', num_dots=20000):
     # do all the halftoning
     if style == 'voronoi':
         return weighted_voronoi_stippling(img, num_dots)
@@ -183,66 +200,27 @@ def dot(img, style='voronoi', num_dots=20000):
     elif style == 'rdithering':
         return dithering(img, style='rand')
 
-def show_dots(dot_coords, ax=None):
+def show_dots(dot_coords, ax=None, color="black"):
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
 
     x = dot_coords[:, 1]
     y = dot_coords[:, 0]
-    ax.scatter(x, -y, s=0.1)
+    ax.scatter(x, -y, s=0.1, color=color)
 
-def main():
-    filename = './img/lenna.png'
-    #filename = './img/david.jpg'
-
-    rgb_img = util.load_img(filename)
-    #rgb_img[:, :] = 0.5
-
-    if np.max(rgb_img) > 1:
-        rgb_img = rgb_img / 255
-    grey_img = util.rgb2gray(rgb_img)
-
-    dots_v = dot(grey_img, style='voronoi')
-    dots_g = dot(grey_img, style='grid')
-    dots_cg = dot(grey_img, style='cgrid')
-    dots_dither = dot(grey_img, style='dithering')
-    dots_odither = dot(grey_img, style='odithering')
-    dots_rdither = dot(grey_img, style='rdithering')
-
-    #fig = plt.figure("Input")
-
-    #ax = fig.add_subplot(1,2,1)
-    #ax.imshow(rgb_img)
-
-    #ax = fig.add_subplot(1,2,2)
-    #ax.imshow(grey_img, cmap='Greys_r')
+    ax.tick_params(
+        axis='both',          # changes apply to the x-axis
+        which='both',      # both major and minor ticks are affected
+    x, y = util.distr_plts(len(methods))
 
     fig = plt.figure("Art")
+    for i, method in enumerate(methods):
+        dots = stipple(grey_img, style=method, num_dots=args.num_dots)
 
-    ax = fig.add_subplot(2,3,1)
-    ax.set_aspect('equal')
-    show_dots(dots_g, ax)
-
-    ax = fig.add_subplot(2,3,2)
-    ax.set_aspect('equal')
-    show_dots(dots_cg, ax)
-    
-    ax = fig.add_subplot(2,3,3)
-    ax.set_aspect('equal')
-    show_dots(dots_dither, ax)
-
-    ax = fig.add_subplot(2,3,4)
-    ax.set_aspect('equal')
-    show_dots(dots_rdither, ax)
-
-    ax = fig.add_subplot(2,3,5)
-    ax.set_aspect('equal')
-    show_dots(dots_odither, ax)
-
-    ax = fig.add_subplot(2,3,6)
-    ax.set_aspect('equal')
-    show_dots(dots_v, ax)
+        ax = fig.add_subplot(x,y,i+1)
+        ax.set_title(method)
+        show_dots(dots, ax)
 
     plt.show()
 
