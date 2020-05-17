@@ -2,11 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
-import util 
-import voronoi
 import scipy.ndimage
 
 import argparse
+import stippling.util 
+import stippling.voronoi
 
 def grid(img, compensate=False, num_dots=20000, num_cells_per_axis=40):
     def compute_mean_per_cell(img, cells_per_axis):
